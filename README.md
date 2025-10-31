@@ -14,3 +14,4 @@ MONGO_URI=mongodb+srv://<db_user_name>:<db_password>@item.ku9u5e7.mongodb.net/
 cd backend
 node scripts/initData.js
 ```
+This is a softeware engineering final project in NTUST, 114-1.
