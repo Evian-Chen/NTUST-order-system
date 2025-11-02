@@ -35,8 +35,10 @@ app.use(
 
 // router
 const indexRouter = require('./routes/index');
+const orderRouter = require('./routes/order');
 
 app.use('/', indexRouter);
+app.use('/api/orders', orderRouter);
 
 // 連接靜態檔案
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
