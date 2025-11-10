@@ -10,10 +10,19 @@ const orderSchema = new mongoose.Schema(
         itemTotalPrice: { type: Number, required: true, default: 0 }
       },
     ],
-    totalPrice: { type: Number, required: true },
+    totalPrice: { type: Number, default: 0 },
     orderDate: { type: Date, default: Date.now },
-    // status: { type: String, enum: ['pending', 'completed', 'canceled'], default: 'pending' },
-    // customerId: { type: String, required: true }
+    status: { 
+      type: String, 
+      enum: ['DRAFT', 'CREATED', 'PAID', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'],
+      default: 'DRAFT'
+    },
+    pickupNumber: { type: String },
+    paymentMethod: { 
+      type: String, 
+      enum: ['cash', 'card'], 
+    },
+    paidAt: { type: Date },
   },
   { timestamps: true }
 );
