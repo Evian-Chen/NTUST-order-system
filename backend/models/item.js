@@ -5,6 +5,7 @@ const itemSchema = new mongoose.Schema({
     name: { type: String, required: true },
     price: { type: Number, required: true },
     type: { type: String },
+    restaurantId: { type: String, required: true },
     id: { type: String, required: true, unique: true }
 });
 
