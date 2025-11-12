@@ -1,69 +1,44 @@
 const express = require('express');
 const router = express.Router();
 const models = require('../models');
+const ExcelJS = require('exceljs');
 
-// ========== Story 0：建立購物車 ==========
+// ========== Story 0：建立訂單 ==========
 router.post('/', async (req, res) => {
   try {
-    const newOrder = await models.orders.create({
-      items: [],
-      totalPrice: 0,
-      status: 'DRAFT'
-    });
+    const { items } = req.body;
 
-    res.status(201).json({
-      success: true,
-      data: {
-        orderId: newOrder._id,
-        status: newOrder.status,
-        totalPrice: newOrder.totalPrice,
-        createdAt: newOrder.createdAt
-      }
-    });
-  } catch (error) {
-    console.error('Create order error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create order'
-    });
-  }
-});
-
-// ========== Story 1：結算訂單 ==========
-router.post('/:id/checkout', async (req, res) => {
-  try {
-    // 查詢訂單
-    const order = await models.orders.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    // 檢查訂單狀態
-    if (order.status !== 'DRAFT') {
+    // 驗證 items 不能為空
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Order already checked out'
+        message: 'Cannot create order with empty items'
       });
     }
 
-    // 檢查購物車是否為空
-    if (order.items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot checkout empty cart'
-      });
-    }
-
-    // 重新驗證商品並計算價格
+    // 驗證商品並計算價格
     let totalPrice = 0;
-    const updatedItems = [];
+    const orderItems = [];
 
-    for (let orderItem of order.items) {
+    for (let orderItem of items) {
+      // 驗證必要欄位
+      if (!orderItem.itemId || !orderItem.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each item must have itemId and quantity'
+        });
+      }
+
+      // 驗證數量
+      if (orderItem.quantity <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Quantity must be greater than 0'
+        });
+      }
+
+      // 查詢商品是否存在
       const item = await models.item.findOne({ id: orderItem.itemId });
-      
       if (!item) {
         return res.status(400).json({
           success: false,
@@ -71,42 +46,39 @@ router.post('/:id/checkout', async (req, res) => {
         });
       }
 
-      // 重新計算價格（以資料庫的價格為準）
+      // 計算小計
       const itemTotalPrice = item.price * orderItem.quantity;
       totalPrice += itemTotalPrice;
 
-      updatedItems.push({
+      orderItems.push({
         itemId: orderItem.itemId,
         quantity: orderItem.quantity,
         itemTotalPrice: itemTotalPrice
       });
     }
 
-    // 更新訂單
-    order.items = updatedItems;
-    order.totalPrice = totalPrice;
-    order.status = 'CREATED';
-    order.orderDate = new Date();
-    await order.save();
+    // 建立訂單
+    const newOrder = await models.orders.create({
+      items: orderItems,
+      totalPrice: totalPrice,
+      status: 'CREATED'
+    });
 
-    res.json({
+    res.status(201).json({
       success: true,
-      data: order
+      data: {
+        orderId: newOrder._id,
+        totalPrice: newOrder.totalPrice,
+        status: newOrder.status,
+        orderDate: newOrder.orderDate
+      }
     });
 
   } catch (error) {
-    console.error('Checkout error:', error);
-    
-    if (error.name === 'CastError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid order ID format'
-      });
-    }
-
+    console.error('Create order error:', error);
     res.status(500).json({
       success: false,
-      message: 'Checkout failed'
+      message: 'Failed to create order'
     });
   }
 });
@@ -137,14 +109,14 @@ router.post('/:id/payments', async (req, res) => {
     if (order.status !== 'CREATED') {
       return res.status(400).json({
         success: false,
-        message: `Cannot pay for order with status ${order.status}`
+        message: `Cannot pay for order with status ${order.status}. Only orders with status CREATED can be paid.`
       });
     }
 
     // 產生取餐號碼（當日流水號）
     const pickupNumber = await generatePickupNumber();
 
-    // 更新訂單（付款一定成功）
+    // 更新訂單
     order.status = 'PAID';
     order.paymentMethod = method;
     order.pickupNumber = pickupNumber;
@@ -159,8 +131,7 @@ router.post('/:id/payments', async (req, res) => {
         pickupNumber: pickupNumber,
         totalPrice: order.totalPrice,
         paidAt: order.paidAt
-      },
-      message: `Payment successful. Your pickup number is ${pickupNumber}`
+      }
     });
 
   } catch (error) {
@@ -233,68 +204,96 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ========== Story 4：查詢特定日期訂單 ==========
+// ========== Story 4：產生營收報表 ==========
 router.get('/', async (req, res) => {
   try {
-    const { date, status } = req.query;
-    const query = {};
+    const { date } = req.query;
 
-    // 日期篩選
-    if (date) {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(date)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid date format. Use YYYY-MM-DD'
-        });
-      }
-
-      const startDate = new Date(date);
-      const endDate = new Date(date);
-      endDate.setDate(endDate.getDate() + 1);
-
-      query.orderDate = {
-        $gte: startDate,
-        $lt: endDate
-      };
-    } else {
-      // 不傳 date 時查詢今日
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      query.orderDate = {
-        $gte: today,
-        $lt: tomorrow
-      };
+    // 驗證 date 參數
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: date (format: YYYY-MM-DD)'
+      });
     }
 
-    // 狀態篩選
-    if (status) {
-      const validStatuses = ['DRAFT', 'CREATED', 'PAID', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid status'
-        });
-      }
-      query.status = status;
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format. Use YYYY-MM-DD'
+      });
     }
 
-    const orders = await models.orders.find(query).sort({ orderDate: -1 });
+    // 設定日期範圍
+    const startDate = new Date(date);
+    const endDate = new Date(date);
+    endDate.setDate(endDate.getDate() + 1);
 
-    res.json({
-      success: true,
-      data: orders,
-      count: orders.length
+    // 查詢該日所有已付款訂單
+    const orders = await models.orders.find({
+      status: 'PAID',
+      paidAt: { $gte: startDate, $lt: endDate }
     });
 
+    // 統計每個商品的銷售數量
+    const itemStats = {};
+
+    for (let order of orders) {
+      for (let item of order.items) {
+        if (!itemStats[item.itemId]) {
+          itemStats[item.itemId] = 0;
+        }
+        itemStats[item.itemId] += item.quantity;
+      }
+    }
+
+    // 查詢商品名稱
+    const reportData = [];
+    for (let itemId in itemStats) {
+      const item = await models.item.findOne({ id: itemId });
+      reportData.push({
+        date: date,
+        item_name: item ? item.name : itemId,
+        number: itemStats[itemId]
+      });
+    }
+
+    // 生成 Excel
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Orders');
+
+    // 設定欄位
+    worksheet.columns = [
+      { header: 'date', key: 'date', width: 15 },
+      { header: 'item_name', key: 'item_name', width: 20 },
+      { header: 'number', key: 'number', width: 10 }
+    ];
+
+    // 加入資料
+    reportData.forEach(row => {
+      worksheet.addRow(row);
+    });
+
+    // 設定回應標頭
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=orders_${date}.xlsx`
+    );
+
+    // 輸出 Excel
+    await workbook.xlsx.write(res);
+    res.end();
+
   } catch (error) {
-    console.error('Get orders error:', error);
+    console.error('Generate report error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Failed to generate report'
     });
   }
 });

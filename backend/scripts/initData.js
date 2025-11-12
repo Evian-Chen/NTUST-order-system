@@ -1,9 +1,10 @@
+// scripts/initData.js
 require("dotenv").config();
 const models = require('../models');
 
 async function initData() {
     console.log("initializing data...");
-    await models.item.deleteMany({}); // 清空資料表
+    await models.item.deleteMany({});
     await models.item.insertMany([
         // 麥當勞
         { name: "大麥克", price: 139, type: "food", restaurantId: "mcd", id: "mcd-001" },
@@ -41,7 +42,7 @@ async function initData() {
         { name: "芋頭西米露", price: 75, type: "drink", restaurantId: "tea", id: "tea-005" }
     ]);
 
-    await models.orders.deleteMany({}); // 清空資料表
+    await models.orders.deleteMany({});
     await models.orders.insertMany([
         {
             items: [
