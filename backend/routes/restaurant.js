@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
                 })
             }
         });
-        res.status(200).json(data);
+        return res.status(200).json(data);
     } catch (error) {
         console.log(error);
         return res.status(500).json({ error: '資料庫抓取錯誤' });
@@ -34,7 +34,7 @@ router.get('/:storeId', async (req, res) => {
             id: storeId
         });
         console.log(rawData);
-        res.status(200)
+        return res.status(200)
     } catch (error) {
         console.log(error);
         return res.status(500).json({ error: "資料庫抓取錯誤" });

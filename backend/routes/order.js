@@ -151,6 +151,8 @@ router.post('/:id/payments', async (req, res) => {
     order.paidAt = new Date();
     await order.save();
 
+    // TODO: 刪除 redis 暫存的這筆購物車的資料
+
     res.json({
       success: true,
       data: {
