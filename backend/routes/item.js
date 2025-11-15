@@ -10,7 +10,7 @@ router.get('/:id', async (req, res) => {
         if (!item) {
             return res.status(404).json({ error: "找不到該餐點" });
         }
-        res.status(200).json(item);
+        return res.status(200).json(item);
     } catch (error) {
         console.log(error);
         return res.status(500).json({ error: "資料庫抓取錯誤" });
@@ -28,10 +28,10 @@ router.get('/:restaurant/:type', async (req, res) => {
             restaurantId: restaurant
         });
         console.log(rawData);
-        res.status(200).json(rawData);
+        return res.status(200).json(rawData);
     } catch (error) {
         console.log("/:restaurant/:type", error);
-        res.status(500).json({ error: "資料庫抓取錯誤" });
+        return res.status(500).json({ error: "資料庫抓取錯誤" });
     }
 })
 

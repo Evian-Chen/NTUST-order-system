@@ -56,6 +56,7 @@ const indexRouter = require('./routes/index');
 const orderRouter = require('./routes/order');
 const restaurantRouter = require('./routes/restaurant');
 const itemRouter = require('./routes/item');
+const cartRouter = require('./routes/cart');
 
 // Swagger UI 設置
 app.use('/api-doc', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
@@ -67,6 +68,7 @@ app.use('/', indexRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/restaurants', restaurantRouter);
 app.use('/api/items', itemRouter);
+app.use('/api/cart', cartRouter);
 
 // 連接靜態檔案
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
