@@ -1,1 +1,0 @@
-This is the entry of the fronted.

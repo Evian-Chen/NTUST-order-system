@@ -29,7 +29,12 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const allowed = []
+const allowed = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174'
+]
 
 // 跨域設定
 app.use(cors({
@@ -38,7 +43,7 @@ app.use(cors({
     if (!origin) return cb(null, true);
     cb(null, allowed.includes(origin));
   },
-  method: ["GET", "POST"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: false // 目前沒用 cookie，可設 false
 }));
 

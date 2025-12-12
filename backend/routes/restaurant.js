@@ -8,6 +8,7 @@ router.get('/', async (req, res) => {
         const rawdata = await models.restaurant.find({});
         const data = rawdata.map((restaurant) => {
             return {
+                id: restaurant.id,
                 name: restaurant.name,
                 cusines: restaurant.cusines.map((cu) => {
                     return {
@@ -34,7 +35,7 @@ router.get('/:storeId', async (req, res) => {
             id: storeId
         });
         console.log(rawData);
-        return res.status(200)
+        return res.status(200).json(rawData)
     } catch (error) {
         console.log(error);
         return res.status(500).json({ error: "資料庫抓取錯誤" });
