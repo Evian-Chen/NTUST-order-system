@@ -6,7 +6,11 @@ const ExcelJS = require('exceljs');
 // ========== Story 0：建立訂單 ==========
 router.post('/', async (req, res) => {
   try {
-    const { items } = req.body;
+    const { items, restaurantId } = req.body;
+
+    if (!restaurantId) {
+      return res.status(400).json({ success: false, message: 'restaurantId is required' });
+    }
 
     // 驗證 items 不能為空
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -21,6 +25,8 @@ router.post('/', async (req, res) => {
     const orderItems = [];
 
     for (let orderItem of items) {
+
+      
       // 驗證必要欄位
       if (!orderItem.itemId || !orderItem.quantity) {
         return res.status(400).json({
@@ -38,11 +44,15 @@ router.post('/', async (req, res) => {
       }
 
       // 查詢商品是否存在
-      const item = await models.item.findOne({ id: orderItem.itemId });
+      const item = await models.item.findOne({ 
+        id: orderItem.itemId, 
+        restaurantId: restaurantId 
+      });
+      
       if (!item) {
         return res.status(400).json({
           success: false,
-          message: `Item ${orderItem.itemId} not found`
+          message: `Item ${orderItem.itemId} not found in restaurant ${restaurantId}`
         });
       }
 
@@ -59,8 +69,9 @@ router.post('/', async (req, res) => {
 
     // 建立訂單
     const newOrder = await models.orders.create({
+      restaurantId, 
       items: orderItems,
-      totalPrice: totalPrice,
+      totalPrice,
       status: 'CREATED'
     });
 
@@ -114,7 +125,7 @@ router.post('/:id/payments', async (req, res) => {
     }
 
     // 產生取餐號碼（當日流水號）
-    const pickupNumber = await generatePickupNumber();
+    const pickupNumber = await generatePickupNumber(order.restaurantId);
 
     // 更新訂單
     order.status = 'PAID';
@@ -154,20 +165,19 @@ router.post('/:id/payments', async (req, res) => {
 });
 
 // ========== 輔助函數：產生取餐號碼 ==========
-async function generatePickupNumber() {
+async function generatePickupNumber(restaurantId) { // 1. 傳入 restaurantId
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   
-  // 查詢今天已經有多少已付款訂單
+  // 2. 查詢時只計算該餐廳今天的訂單
   const count = await models.orders.countDocuments({
+    restaurantId, // 加入過濾條件
     status: { $in: ['PAID', 'PREPARING', 'READY', 'COMPLETED'] },
     paidAt: { $gte: today, $lt: tomorrow }
   });
   
-  // 流水號 = 今日已付款訂單數 + 1，補零到3位數
   const number = (count + 1).toString().padStart(3, '0');
   return number;
 }
@@ -209,13 +219,12 @@ router.get('/:id', async (req, res) => {
 // ========== Story 4：產生營收報表 ==========
 router.get('/', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, restaurantId } = req.query; 
 
-    // 驗證 date 參數
-    if (!date) {
+    if (!date || !restaurantId) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required parameter: date (format: YYYY-MM-DD)'
+        message: 'Missing required parameter: date or restaurantId'
       });
     }
 
@@ -234,6 +243,7 @@ router.get('/', async (req, res) => {
 
     // 查詢該日所有已付款訂單
     const orders = await models.orders.find({
+      restaurantId, // 加入過濾條件
       status: 'PAID',
       paidAt: { $gte: startDate, $lt: endDate }
     });

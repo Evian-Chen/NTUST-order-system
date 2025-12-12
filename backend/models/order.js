@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema(
   {
+    restaurantId: { type: String, required: true },
     items: [
       {
         itemId: { type: String, required: true },
