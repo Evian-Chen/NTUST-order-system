@@ -1,3 +1,4 @@
+require('dotenv').config();  // 載入環境變數
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
@@ -29,7 +30,10 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const allowed = []
+const allowed = [
+  'http://localhost:5173',  // Vite 開發伺服器
+  'http://localhost:3000'   // 本地後端（以防萬一）
+]
 
 // 跨域設定
 app.use(cors({
@@ -38,7 +42,7 @@ app.use(cors({
     if (!origin) return cb(null, true);
     cb(null, allowed.includes(origin));
   },
-  method: ["GET", "POST"],
+  methods: ["GET", "POST"],  // 修正：method → methods
   credentials: false // 目前沒用 cookie，可設 false
 }));
 
