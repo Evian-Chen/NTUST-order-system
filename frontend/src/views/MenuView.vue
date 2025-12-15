@@ -7,10 +7,11 @@ import { useCart } from '../composables/useCart'
 const route = useRoute()
 const router = useRouter()
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-const { addToCart: addItemToCart, totalItems } = useCart()
+const { addToCart: addItemToCart, totalItems, setRestaurantId } = useCart()
 
 // 1. 定義資料介面
 interface MenuItem {
+  id: string  // 加入 id 欄位
   name: string
   price: number
   type?: string
@@ -50,6 +51,10 @@ const fetchMenu = async () => {
     currentRestaurant.value = response.data
     displayedItems.value = response.data.cusines || []
     console.log('✅ 成功載入菜單:', currentRestaurant.value)
+    
+    // 設定購物車的餐廳 ID 和名稱
+    setRestaurantId(restaurantId, response.data.name)
+    console.log('🏪 已設定餐廳:', response.data.name)
     
     // 📊 檢查實際的 type 值
     if (currentRestaurant.value?.cusines && currentRestaurant.value.cusines.length > 0) {

@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCart } from '../composables/useCart'
+imp    // 為每個餐廳建立獨立訂單
+    for (const [restaurantId, items] of itemsByRestaurant) {
+      if (!items[0]) continue
+      const restaurantName = items[0].restaurantName || restaurantId
+      console.log(`\n📋 處理餐廳: ${restaurantName}`){ useCart } from '../composables/useCart'
 import axios from 'axios'
 
 const router = useRouter()
@@ -93,9 +97,8 @@ const processPayment = async (method: 'cash' | 'card') => {
 
     // 為每個餐廳建立獨立訂單
     for (const [restaurantId, items] of itemsByRestaurant) {
-      if (!items[0]) continue
       const restaurantName = items[0].restaurantName || restaurantId
-      console.log(`\n📋 處理餐廳: ${restaurantName}`)
+      console.log(`\n� 處理餐廳: ${restaurantName}`)
 
       // 1. 建立訂單
       const orderPayload = {
@@ -214,7 +217,6 @@ const closePaymentModal = () => {
 
         <div class="item-details">
           <h3>{{ item.name }}</h3>
-          <p v-if="item.restaurantName" class="restaurant-tag">📍 {{ item.restaurantName }}</p>
           <p class="item-price">單價：${{ item.price }}</p>
           
           <!-- Story 2.3: 數量控制 -->
@@ -280,7 +282,7 @@ const closePaymentModal = () => {
       <div class="success-modal">
         <div class="success-icon">✅</div>
         <h2>訂購成功！</h2>
-        <p class="order-number">{{ orderNumber }}</p>
+        <p class="order-number">訂單號碼：{{ orderNumber }}</p>
         <p class="redirect-message">即將返回首頁...</p>
       </div>
     </div>
@@ -425,13 +427,6 @@ const closePaymentModal = () => {
   font-size: 0.95rem;
   font-weight: 600;
   color: hsl(var(--card-foreground));
-}
-
-.restaurant-tag {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.75rem;
-  margin: 0.25rem 0;
-  font-weight: 500;
 }
 
 .item-price {
