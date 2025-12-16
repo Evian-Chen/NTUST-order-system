@@ -49,11 +49,18 @@ onMounted(() => {
 const selectRestaurant = (id: string) => {
   router.push(`/menu/${id}`)
 }
+
+const goToReport = () => {
+  router.push('/orders')
+}
 </script>
 
 <template>
   <div class="selection-container">
-    <h1 class="title">🍽️ 請選擇餐廳</h1>
+    <div class="header-row">
+      <h1 class="title">🍽️ 請選擇餐廳</h1>
+      <button class="orders-btn" @click="goToReport">📊 匯出報表</button>
+    </div>
 
     <div v-if="isLoading" class="loading">資料載入中...</div>
     <div v-else-if="errorMsg" class="error">{{ errorMsg }}</div>
@@ -88,13 +95,35 @@ const selectRestaurant = (id: string) => {
   color: hsl(var(--foreground));
 }
 
-.title {
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 2rem;
+}
+
+.title {
+  margin: 0;
   color: hsl(var(--foreground));
   font-size: 2rem;
   font-weight: 600;
-  text-align: center;
   letter-spacing: -0.02em;
+}
+
+.orders-btn {
+  padding: 0.75rem 1.25rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.orders-btn:hover {
+  background: hsl(var(--primary) / 0.9);
 }
 
 .loading, .error {
