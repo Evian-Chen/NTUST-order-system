@@ -12,10 +12,10 @@ global.console = {
 // 全局測試設置
 beforeAll(() => {
   // 可以在這裡進行全局的測試前設置
-  console.log('🚀 開始執行測試...');
+  console.log('開始執行測試...');
 });
 
 afterAll(() => {
   // 可以在這裡進行全局的測試後清理
-  console.log('✅ 測試執行完畢');
+  console.log('ｓ測試執行完畢');
 });

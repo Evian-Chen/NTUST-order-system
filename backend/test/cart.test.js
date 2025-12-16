@@ -179,4 +179,206 @@ describe('Cart API 測試', () => {
       expect(res.body.error).toBe('amount 必須是正整數');
     });
   });
+
+  // 測試 GET /api/cart - 取得購物車內容
+  describe('GET /api/cart', () => {
+    it('應該成功取得空的購物車', async () => {
+      // 初始化空購物車
+      await redis.set('cart', JSON.stringify({}));
+      
+      const res = await request(app)
+        .get('/api/cart')
+        .expect(200);
+      
+      expect(res.body).toHaveProperty('data');
+      expect(res.body.data).toEqual({});
+    });
+    
+    it('應該成功取得有商品的購物車', async () => {
+      const cartData = {
+        'mcd001': { price: 278, amount: 2 },
+        'mcd003': { price: 65, amount: 1 }
+      };
+      await redis.set('cart', JSON.stringify(cartData));
+      
+      const res = await request(app)
+        .get('/api/cart')
+        .expect(200);
+      
+      expect(res.body).toHaveProperty('data');
+      expect(res.body.data).toHaveProperty('mcd001');
+      expect(res.body.data).toHaveProperty('mcd003');
+      expect(res.body.data.mcd001.price).toBe(278);
+      expect(res.body.data.mcd001.amount).toBe(2);
+      expect(res.body.data.mcd003.price).toBe(65);
+      expect(res.body.data.mcd003.amount).toBe(1);
+    });
+    
+    it('應該在購物車不存在時回傳空物件', async () => {
+      // 確保 Redis 中沒有購物車資料
+      await redis.del('cart');
+      
+      const res = await request(app)
+        .get('/api/cart')
+        .expect(200);
+      
+      expect(res.body).toHaveProperty('data');
+      expect(res.body.data).toEqual({});
+    });
+    
+    it('應該在 Redis 錯誤時回傳 500 狀態碼', async () => {
+      // 模擬 Redis 錯誤
+      await redis.disconnect();
+      
+      const res = await request(app)
+        .get('/api/cart')
+        .expect(500);
+      
+      expect(res.body).toHaveProperty('error');
+      expect(res.body.error).toBe('redis 快取錯誤');
+      
+      // 重新連接 Redis
+      await redis.connect();
+    });
+  });
+
+  // 測試 DELETE /api/cart/item - 刪除購物車項目
+  describe('DELETE /api/cart/item', () => {
+    beforeEach(async () => {
+      // 每個測試前都設定購物車資料
+      const cartData = {
+        'mcd001': { price: 278, amount: 3 },
+        'mcd003': { price: 65, amount: 1 }
+      };
+      await redis.set('cart', JSON.stringify(cartData));
+    });
+    
+    it('應該成功減少商品數量（數量 > 1）', async () => {
+      const res = await request(app)
+        .delete('/api/cart/item')
+        .send({ itemId: 'mcd001' })
+        .expect(200);
+      
+      expect(res.body).toHaveProperty('data');
+      expect(res.body.data.mcd001.amount).toBe(2); // 3 - 1 = 2
+      expect(res.body.data.mcd001.price).toBe(278);
+      expect(res.body.data).toHaveProperty('mcd003');
+    });
+    
+    it('應該在數量為 1 時刪除整個商品', async () => {
+      const res = await request(app)
+        .delete('/api/cart/item')
+        .send({ itemId: 'mcd003' })
+        .expect(200);
+      
+      expect(res.body).toHaveProperty('data');
+      expect(res.body.data).not.toHaveProperty('mcd003'); // 應該被刪除
+      expect(res.body.data).toHaveProperty('mcd001'); // 其他商品應該還在
+    });
+    
+    it('應該在缺少 itemId 時回傳 400 狀態碼', async () => {
+      const res = await request(app)
+        .delete('/api/cart/item')
+        .send({})
+        .expect(400);
+      
+      expect(res.body).toHaveProperty('error');
+      expect(res.body.error).toBe('itemId 是必填欄位');
+    });
+    
+    it('應該在購物車不存在時回傳 404 狀態碼', async () => {
+      // 刪除購物車
+      await redis.del('cart');
+      
+      const res = await request(app)
+        .delete('/api/cart/item')
+        .send({ itemId: 'mcd001' })
+        .expect(404);
+      
+      expect(res.body).toHaveProperty('error');
+      expect(res.body.error).toBe('查不到購物車資料，無法刪除');
+    });
+    
+    it('應該在商品不存在時回傳 404 狀態碼', async () => {
+      const res = await request(app)
+        .delete('/api/cart/item')
+        .send({ itemId: 'nonexistent-item' })
+        .expect(404);
+      
+      expect(res.body).toHaveProperty('error');
+      expect(res.body.error).toBe('查不到商品，無法刪除');
+    });
+    
+    it('應該在 Redis 錯誤時回傳 500 狀態碼', async () => {
+      // 模擬 Redis 錯誤
+      await redis.disconnect();
+      
+      const res = await request(app)
+        .delete('/api/cart/item')
+        .send({ itemId: 'mcd001' })
+        .expect(500);
+      
+      expect(res.body).toHaveProperty('error');
+      expect(res.body.error).toBe('快取抓取錯誤');
+      
+      // 重新連接 Redis
+      await redis.connect();
+    });
+  });
+
+  // 測試 DELETE /api/cart - 刪除整個購物車
+  describe('DELETE /api/cart', () => {
+    beforeEach(async () => {
+      // 每個測試前都設定購物車資料
+      const cartData = {
+        'mcd001': { price: 278, amount: 2 },
+        'mcd003': { price: 65, amount: 1 }
+      };
+      await redis.set('cart', JSON.stringify(cartData));
+    });
+    
+    it('應該成功清空購物車', async () => {
+      const res = await request(app)
+        .delete('/api/cart')
+        .expect(200);
+      
+      expect(res.body).toHaveProperty('message');
+      expect(res.body.message).toBe('購物車已清空');
+      
+      // 驗證 Redis 中購物車已被清空
+      const cartData = await redis.get('cart');
+      expect(JSON.parse(cartData)).toEqual({});
+    });
+    
+    it('應該在購物車已經是空的時候也能正常執行', async () => {
+      // 先清空購物車
+      await redis.set('cart', JSON.stringify({}));
+      
+      const res = await request(app)
+        .delete('/api/cart')
+        .expect(200);
+      
+      expect(res.body).toHaveProperty('message');
+      expect(res.body.message).toBe('購物車已清空');
+      
+      // 驗證 Redis 中購物車仍是空的
+      const cartData = await redis.get('cart');
+      expect(JSON.parse(cartData)).toEqual({});
+    });
+    
+    it('應該在 Redis 錯誤時回傳 500 狀態碼', async () => {
+      // 模擬 Redis 錯誤
+      await redis.disconnect();
+      
+      const res = await request(app)
+        .delete('/api/cart')
+        .expect(500);
+      
+      expect(res.body).toHaveProperty('error');
+      expect(res.body.error).toBe('快取抓取錯誤');
+      
+      // 重新連接 Redis
+      await redis.connect();
+    });
+  });
 });

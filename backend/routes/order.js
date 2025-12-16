@@ -28,7 +28,7 @@ router.post('/', async (req, res) => {
 
       
       // 驗證必要欄位
-      if (!orderItem.itemId || !orderItem.quantity) {
+      if (!orderItem.itemId || orderItem.quantity === undefined || orderItem.quantity === null) {
         return res.status(400).json({
           success: false,
           message: 'Each item must have itemId and quantity'
